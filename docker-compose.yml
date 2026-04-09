@@ -1,0 +1,29 @@
+services:
+  # 用户端 - 技术博客
+  frontend-user:
+    build:
+      context: ./frontend-user
+      dockerfile: Dockerfile
+      # 多平台支持：使用 docker buildx 构建时可指定 --platform linux/amd64,linux/arm64
+      # 本地构建时自动使用当前平台
+    container_name: tech-blog-user
+    restart: unless-stopped
+    ports:
+      - "8081:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      # 禁用远程图片优化，避免 Docker 环境下的 DNS 解析错误
+      - NEXT_IMAGE_OPTIMIZATION=false
+    networks:
+      - tech-blog-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  tech-blog-network:
+    driver: bridge
