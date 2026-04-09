@@ -125,11 +125,12 @@ export async function getRelatedPosts(
   currentSlug: string,
   limit: number = 3
 ): Promise<Post[]> {
-  const currentPost = await getPostBySlug(currentSlug);
+  const allPosts = await getAllPosts();
+  const currentPost = allPosts.find((post) => post.slug === currentSlug);
   if (!currentPost) return [];
 
-  const allPosts = await getAllPosts();
   const otherPosts = allPosts.filter((post) => post.slug !== currentSlug);
+  const currentDate = new Date(currentPost.date);
 
   // 计算相关性分数
   const postsWithScore = otherPosts.map((post) => {
@@ -146,12 +147,28 @@ export async function getRelatedPosts(
     );
     score += commonTags.length * 2;
 
+    // 时间衰减加分
+    const postDate = new Date(post.date);
+    const daysDiff = Math.abs(
+      (currentDate.getTime() - postDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (daysDiff <= 30) {
+      score += 2;
+    } else if (daysDiff <= 90) {
+      score += 1;
+    }
+
     return { post, score };
   });
 
-  // 按分数排序并返回前N个
+  // 按分数排序，同分时按发布时间倒序
   return postsWithScore
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return new Date(b.post.date).getTime() - new Date(a.post.date).getTime();
+    })
     .slice(0, limit)
     .map((item) => item.post);
 }
